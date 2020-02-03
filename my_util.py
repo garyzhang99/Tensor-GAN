@@ -6,6 +6,7 @@ import numpy as np
 '''
 image = tf.read_file('29_DiscCenter.png','r')
 image_tensor = tf.image.decode_png(image)
+image_tensor = tf.reshape(tf.image.rgb_to_grayscale(image_tensor),[480,640])
 shape = tf.shape(image_tensor)
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
@@ -14,7 +15,7 @@ print(sess.run(shape))
 print(image_tensor)
 print(sess.run(image_tensor))
 plt.figure(figsize=(6.4, 4.8), dpi=100)
-plt.imshow(sess.run(image_tensor).reshape(480, 640, 3))
+plt.imshow(sess.run(image_tensor).reshape(480, 640))
 plt.xticks([])
 plt.yticks([])
 plt.axis('off')
@@ -48,9 +49,14 @@ def readpic(filelist,batch_size):
 
 def next_batch(whole_data, data_size, batch_size):
     index = np.random.randint(data_size, size=batch_size)
-    images = [whole_data[i] for i in index]
+    images = [tf.reshape(whole_data[i],[480,640]) for i in index]
     return images
 
+def next_batch_line(whole_data, data_size, batch_size):
+    index = np.random.randint(data_size, size=batch_size)
+    images = [whole_data[i] for i in index]
+    images_line = [tf.reshape(image, [-1]) for image in images]
+    return images_line
 
 '''
 file_name = os.listdir("./data_DiscCenter_enhance/")
