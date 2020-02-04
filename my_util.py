@@ -3,41 +3,45 @@ import matplotlib.pyplot as plt
 import os
 import numpy as np
 from tensorflow.examples.tutorials.mnist import input_data
+from PIL import Image
 '''
 mnist = input_data.read_data_sets('../MNIST_data', one_hot=True)
 X_mb, _ = mnist.train.next_batch(2)
 
-image = tf.read_file('pic.png','r')
-image_tensor = tf.image.decode_png(image)
-image_tensor = tf.reshape(tf.image.rgb_to_grayscale(image_tensor),[30,40])
+image = Image.open('pic.png')
+image_array = np.asarray(image)
+fake = tf.read_file('fake.png','r')
+image_tensor = tf.convert_to_tensor(image_array)
+image_tensor = tf.image.rgb_to_grayscale(tf.image.decode_png(tf.read_file('pic.png','r')))
+fake_tensor = tf.image.decode_png(fake)
+#image_tensor = tf.reshape(tf.image.rgb_to_grayscale(image_tensor),[30,40])
 shape = tf.shape(image_tensor)
 image_tensor2 = tf.to_float(image_tensor)/tf.constant(255.)
+image_tensor4 = tf.cast(tf.to_int32(image_tensor2*tf.constant(255.)), dtype=tf.uint8)
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 print(sess.run(tf.shape(X_mb)))
-print(sess.run(image))
+print(sess.run(tf.shape(image_tensor4)))
 print(sess.run(shape))
 print(image_tensor)
-for i in range(30):
-    for j in range(40):
-        #continue
-        #print(sess.run(tf.convert_to_tensor(X_mb[1])).reshape(28,28)[i][j])
-        print(sess.run(image_tensor2[i][j]))
-plt.figure(figsize=(4, 3), dpi=10)
-plt.imshow(sess.run(image_tensor).reshape(30, 40), cmap='Greys_r')
+
+Image.fromarray(sess.run(image_tensor4[:,:,0]), mode='L').save('new.png')
+
+plt.figure(figsize=(0.4, 0.3), dpi=100)
+plt.imshow(sess.run(image_tensor))
 plt.xticks([])
 plt.yticks([])
 plt.axis('off')
-plt.savefig('fake.png', dpi=10)
+plt.savefig('fake.png', dpi=100)
+
 
 plt.figure(figsize=(2.8, 2.8), dpi=10)
-plt.imshow(sess.run(tf.convert_to_tensor(X_mb[1])).reshape(28, 28), cmap='Greys_r')
+plt.imshow(sess.run(tf.convert_to_tensor(X_mb[1])).reshape(28, 28))
 plt.xticks([])
 plt.yticks([])
 plt.axis('off')
 plt.savefig('fake_minist.png', dpi=10)
 '''
-
 
 def readpic(filelist,batch_size):
     file_queue = tf.train.string_input_producer(filelist)

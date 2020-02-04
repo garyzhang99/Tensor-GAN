@@ -2,7 +2,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
 from tnsr import *
-
+from PIL import Image
 import tensorflow as tf
 from util import normal_init, get_number_parameters
 import my_util
@@ -22,6 +22,7 @@ data_size = len(filelist)
 
 whole_data = [tf.image.rgb_to_grayscale(tf.image.decode_png(tf.read_file(file, 'r')))
               for file in filelist]
+save_order = 0
 
 batch_size = 32
 
@@ -103,6 +104,14 @@ def plot(sample):
     plt.axis('off')
     return fig
 
+def picsave(sample,sess):
+    global save_order
+    tensor255 = sample * tf.constant(255.)
+    tensorint32 = tf.to_int32(tensor255)
+    image_tensor = tf.cast(tensorint32, dtype=tf.uint8)
+    Image.fromarray(sess.run(image_tensor), mode='L').save(output_path+'{}.png'.format(str(save_order)))
+    save_order += 1
+
 print("Total number of parameters: {}".format(get_number_parameters(theta_G+theta_D)))
 
 G_sample = generator(Z)
@@ -130,15 +139,10 @@ sess.run(tf.global_variables_initializer())
 if not os.path.exists(output_path):
     os.makedirs(output_path)
 
-i = 0
-
 for it in range(1000000):
     if it % 1000 == 0:
         samples = sess.run(G_sample, feed_dict={Z: sample_z([1, gen_h_dim, gen_w_dim])})
-        fig = plot(samples[0])
-        plt.savefig(output_path+'{}.png'.format(str(i)), dpi=100)
-        i += 1
-        plt.close(fig)
+        picsave(samples[0],sess)
 
     X_mb = my_util.next_batch(whole_data=whole_data, data_size=data_size, batch_size=batch_size)
     X_mb = [tensor.eval(session=sess) for tensor in X_mb]
