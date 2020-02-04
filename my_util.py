@@ -2,25 +2,42 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import os
 import numpy as np
-
+from tensorflow.examples.tutorials.mnist import input_data
 '''
-image = tf.read_file('29_DiscCenter.png','r')
+mnist = input_data.read_data_sets('../MNIST_data', one_hot=True)
+X_mb, _ = mnist.train.next_batch(2)
+
+image = tf.read_file('pic.png','r')
 image_tensor = tf.image.decode_png(image)
-image_tensor = tf.reshape(tf.image.rgb_to_grayscale(image_tensor),[480,640])
+image_tensor = tf.reshape(tf.image.rgb_to_grayscale(image_tensor),[30,40])
 shape = tf.shape(image_tensor)
+image_tensor2 = tf.to_float(image_tensor)/tf.constant(255.)
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
+print(sess.run(tf.shape(X_mb)))
 print(sess.run(image))
 print(sess.run(shape))
 print(image_tensor)
-print(sess.run(image_tensor))
-plt.figure(figsize=(6.4, 4.8), dpi=100)
-plt.imshow(sess.run(image_tensor).reshape(480, 640))
+for i in range(30):
+    for j in range(40):
+        #continue
+        #print(sess.run(tf.convert_to_tensor(X_mb[1])).reshape(28,28)[i][j])
+        print(sess.run(image_tensor2[i][j]))
+plt.figure(figsize=(4, 3), dpi=10)
+plt.imshow(sess.run(image_tensor).reshape(30, 40), cmap='Greys_r')
 plt.xticks([])
 plt.yticks([])
 plt.axis('off')
-plt.savefig('fake.png', dpi=100)
+plt.savefig('fake.png', dpi=10)
+
+plt.figure(figsize=(2.8, 2.8), dpi=10)
+plt.imshow(sess.run(tf.convert_to_tensor(X_mb[1])).reshape(28, 28), cmap='Greys_r')
+plt.xticks([])
+plt.yticks([])
+plt.axis('off')
+plt.savefig('fake_minist.png', dpi=10)
 '''
+
 
 def readpic(filelist,batch_size):
     file_queue = tf.train.string_input_producer(filelist)
@@ -49,7 +66,7 @@ def readpic(filelist,batch_size):
 
 def next_batch(whole_data, data_size, batch_size):
     index = np.random.randint(data_size, size=batch_size)
-    images = [tf.reshape(whole_data[i],[480,640]) for i in index]
+    images = [tf.to_float(tf.reshape(whole_data[i],[30,40]))/tf.constant(255.) for i in index]
     return images
 
 def next_batch_line(whole_data, data_size, batch_size):
