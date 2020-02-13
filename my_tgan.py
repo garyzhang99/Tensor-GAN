@@ -10,9 +10,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-data_path = "./label0_data_copy/"
+data_path = "./1st_followup/"
 
-output_path = "./eye_out_label0_copy/"
+output_path = "./1st_followup_out/"
 
 file_name = os.listdir(data_path)
 
@@ -20,26 +20,26 @@ filelist = [os.path.join(data_path, file) for file in file_name]
 
 data_size = len(filelist)
 
-whole_data = [tf.image.rgb_to_grayscale(tf.image.decode_png(tf.read_file(file, 'r')))
-              for file in filelist]
+whole_data = [tf.convert_to_tensor(np.asarray(Image.open(file).convert('L'))) for file in filelist]
+
 save_order = 0
 
-batch_size = 32
+batch_size = 128
 
 lr = 5e-3
 
-core_h_dim = 36
-core_w_dim = 48
+core_h_dim = 80
+core_w_dim = 80
 
-gen_h_dim = 36
-gen_w_dim = 48
+gen_h_dim = 80
+gen_w_dim = 80
 
 
-X = tf.placeholder(tf.float32, shape=[None, 30, 40])
+X = tf.placeholder(tf.float32, shape=[None, 64, 64])
 
 # Weight matrices and bias tensor for the first and second tensor layer for the discriminator D
-D_U_00 = tf.Variable(normal_init([core_h_dim, 30]))
-D_U_01 = tf.Variable(normal_init([core_w_dim, 40]))
+D_U_00 = tf.Variable(normal_init([core_h_dim, 64]))
+D_U_01 = tf.Variable(normal_init([core_w_dim, 64]))
 #D_U_02 = tf.Variable(normal_init([3, 3]))
 D_b_0 = tf.Variable(tf.zeros(shape=[core_h_dim, core_w_dim]))
 
@@ -61,10 +61,10 @@ G_U_01 = tf.Variable(normal_init([core_w_dim, gen_w_dim]))
 #G_U_02 = tf.Variable(normal_init([3, 3]))
 G_b_0 = tf.Variable(tf.zeros(shape=[core_h_dim, core_w_dim]))
 
-G_U_10 = tf.Variable(normal_init([30, core_h_dim]))
-G_U_11 = tf.Variable(normal_init([40, core_w_dim]))
+G_U_10 = tf.Variable(normal_init([64, core_h_dim]))
+G_U_11 = tf.Variable(normal_init([64, core_w_dim]))
 #G_U_12 = tf.Variable(normal_init([3, 3]))
-G_b_1 = tf.Variable(tf.zeros(shape=[30, 40]))
+G_b_1 = tf.Variable(tf.zeros(shape=[64, 64]))
 
 # Parameters for generator
 theta_G = [G_U_00, G_U_01, G_U_10, G_U_11, G_b_0, G_b_1]
@@ -132,8 +132,16 @@ D_solver = tf.train.AdamOptimizer(learning_rate=lr, beta1=0.5).minimize(D_loss, 
 G_solver = tf.train.AdamOptimizer(learning_rate=lr, beta1=0.5).minimize(G_loss, var_list=theta_G)
 
 #mnist = input_data.read_data_sets('../MNIST_data', one_hot=True)
+'''
+sess = tf.Session(config=tf.ConfigProto(
+    device_count={"CPU":4},
+    inter_op_parallelism_threads=1,
+    intra_op_parallelism_threads=1,
+))
+'''
 
 sess = tf.Session()
+
 sess.run(tf.global_variables_initializer())
 
 if not os.path.exists(output_path):
@@ -141,8 +149,9 @@ if not os.path.exists(output_path):
 
 for it in range(1000000):
     if it % 1000 == 0:
-        samples = sess.run(G_sample, feed_dict={Z: sample_z([1, gen_h_dim, gen_w_dim])})
-        picsave(samples[0],sess)
+        samples = sess.run(G_sample, feed_dict={Z: sample_z([16, gen_h_dim, gen_w_dim])})
+        for i in range(16):
+            picsave(samples[i],sess)
 
     X_mb = my_util.next_batch(whole_data=whole_data, data_size=data_size, batch_size=batch_size)
     X_mb = [tensor.eval(session=sess) for tensor in X_mb]

@@ -5,8 +5,17 @@ import numpy as np
 from tensorflow.examples.tutorials.mnist import input_data
 from PIL import Image
 '''
+image = Image.open('ct1.tif').convert('L')
+image_array = np.asarray(image)
+image_tensor = tf.convert_to_tensor(image_array)
+sess = tf.Session()
+print(sess.run(tf.shape(image_tensor)))
+Image.fromarray(sess.run(image_tensor)).save('ct1_8.png')
+'''
+
+'''
 mnist = input_data.read_data_sets('../MNIST_data', one_hot=True)
-X_mb, _ = mnist.train.next_batch(2)
+X_mb, _ = mnist.train.next_batch(2048)
 
 image = Image.open('pic.png')
 image_array = np.asarray(image)
@@ -34,13 +43,13 @@ plt.yticks([])
 plt.axis('off')
 plt.savefig('fake.png', dpi=100)
 
-
-plt.figure(figsize=(2.8, 2.8), dpi=10)
-plt.imshow(sess.run(tf.convert_to_tensor(X_mb[1])).reshape(28, 28))
-plt.xticks([])
-plt.yticks([])
-plt.axis('off')
-plt.savefig('fake_minist.png', dpi=10)
+sess = tf.Session()
+for i in range(512):
+    image = tf.convert_to_tensor(X_mb[i])
+    image = image * tf.constant(255.)
+    image = tf.to_int32(image)
+    image = tf.cast(image,dtype=tf.uint8)
+    Image.fromarray(sess.run(image).reshape(28, 28)).convert('L').save('minist/minist_{}.png'.format(i))
 '''
 
 def readpic(filelist,batch_size):
@@ -70,7 +79,7 @@ def readpic(filelist,batch_size):
 
 def next_batch(whole_data, data_size, batch_size):
     index = np.random.randint(data_size, size=batch_size)
-    images = [tf.to_float(tf.reshape(whole_data[i],[30,40]))/tf.constant(255.) for i in index]
+    images = [tf.to_float(tf.reshape(whole_data[i],[64,64]))/tf.constant(255.) for i in index]
     return images
 
 def next_batch_line(whole_data, data_size, batch_size):
