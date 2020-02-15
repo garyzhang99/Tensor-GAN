@@ -4,12 +4,26 @@ import os
 import numpy as np
 from tensorflow.examples.tutorials.mnist import input_data
 from PIL import Image
+fdebug = open('debug.txt','w')
+sess = tf.Session()
+image_tf = tf.image.rgb_to_grayscale(tf.image.decode_png(tf.read_file('pic.png','r')))
+image_PIL = tf.convert_to_tensor(np.asarray(Image.open('pic.png','r').convert('L')))
+arr_tf = sess.run(tf.reshape(image_tf,[30,40]))
+arr_PIL = sess.run(tf.reshape(image_PIL,[30,40]))
+for i in range(30):
+    for j in range(40):
+        if arr_tf[i][j] != arr_PIL[i][j]:
+            fdebug.write('i:'+str(i) + ' j:' + str(j) + '\n')
+            fdebug.write('tf:' + str(arr_tf[i][j]) + ' PIL:' + str(arr_PIL[i][j]) + '\n')
+
 '''
+fdebug = open('debug.txt','w')
 image = Image.open('ct1.tif').convert('L')
 image_array = np.asarray(image)
 image_tensor = tf.convert_to_tensor(image_array)
+image_range1 = tf.to_float(tf.reshape(image_tensor,[64,64]))/tf.constant(255.)
 sess = tf.Session()
-print(sess.run(tf.shape(image_tensor)))
+arr = sess.run(image_range1)
 Image.fromarray(sess.run(image_tensor)).save('ct1_8.png')
 '''
 
@@ -79,7 +93,7 @@ def readpic(filelist,batch_size):
 
 def next_batch(whole_data, data_size, batch_size):
     index = np.random.randint(data_size, size=batch_size)
-    images = [tf.to_float(tf.reshape(whole_data[i],[64,64]))/tf.constant(255.) for i in index]
+    images = [whole_data[i] for i in index]
     return images
 
 def next_batch_line(whole_data, data_size, batch_size):

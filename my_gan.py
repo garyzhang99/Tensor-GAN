@@ -9,12 +9,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import my_util
 import matplotlib.gridspec as gridspec
-
+from PIL import Image
 from util import get_number_parameters
 
-data_path = "./label1_data/"
+width = 256
 
-output_path = "./eye_out_label1/"
+height = 256
+
+tunnel = 1
+
+data_path = "./1st_followup_png/"
+
+output_path = "./1st_followup_png_out_gan/"
 
 file_name = os.listdir(data_path)
 
@@ -22,21 +28,18 @@ filelist = [os.path.join(data_path, file) for file in file_name]
 
 data_size = len(filelist)
 
-whole_data = [tf.image.decode_png(tf.read_file(file, 'r')) for file in filelist]
+whole_data = [tf.image.rgb_to_grayscale(tf.image.decode_png(tf.read_file(file,'r'))) for file in filelist]
 
-width = 640
+whole_images =[tf.to_float(tf.reshape(data,[height,width]))/tf.constant(255.) for data in whole_data]
+save_order = 0
 
-height = 480
+pixel = width*height
 
-tunnel = 3
+batch_size = 128
 
-pixel = width*height*tunnel
+z_dim = 1000
 
-batch_size = 8
-
-z_dim = 768
-
-h_dim = 5760
+h_dim = 4096
 
 def xavier_init(size):
     in_dim = size[0]
@@ -95,6 +98,13 @@ def plot(sample):
     plt.axis('off')
     return fig
 
+def picsave(sample,sess):
+    global save_order
+    tensor255 = sample * tf.constant(255.)
+    tensorint32 = tf.to_int32(tensor255)
+    image_tensor = tf.cast(tensorint32, dtype=tf.uint8)
+    Image.fromarray(sess.run(image_tensor), mode='L').save(output_path+'{}.png'.format(str(save_order)))
+    save_order += 1
 
 G_sample = generator(Z)
 D_real, D_logit_real = discriminator(X)
@@ -115,22 +125,22 @@ G_solver = tf.train.AdamOptimizer().minimize(G_loss, var_list=theta_G)
 
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
+whole_images = [tf.reshape(image,[-1]).eval(session=sess) for image in whole_images]
 
-if not os.path.exists('out/'):
-    os.makedirs('out/')
+if not os.path.exists(output_path):
+    os.makedirs(output_path)
 
 i = 0
 
 for it in range(1000000):
+    if it % 200 == 0:
+        print(it)
     if it % 1000 == 0:
-        samples = sess.run(G_sample, feed_dict={Z: sample_Z(1, z_dim)})
-        fig = plot(samples[0])
-        plt.savefig(output_path + '{}.png'.format(str(i)), dpi=100)
-        i += 1
-        plt.close(fig)
+        samples = sess.run(G_sample, feed_dict={Z: sample_Z(8, z_dim)})
+        for i in range(8):
+            picsave(tf.reshape(samples[i],[height,width]),sess)
 
-    X_mb = my_util.next_batch_line(whole_data=whole_data, data_size=data_size, batch_size=batch_size)
-    X_mb = [tensor.eval(session=sess) for tensor in X_mb]
+    X_mb = my_util.next_batch(whole_data=whole_images, data_size=data_size, batch_size=batch_size)
 
     _, D_loss_curr = sess.run([D_solver, D_loss], feed_dict={X: X_mb, Z: sample_Z(batch_size, z_dim)})
     _, G_loss_curr = sess.run([G_solver, G_loss], feed_dict={Z: sample_Z(batch_size, z_dim)})
