@@ -31,10 +31,10 @@ def loadData():
     for i in range(len(label1files)):
         if i in index1:
             trainFiles.append(label1files[i])
-            trainLabels.append(0)
+            trainLabels.append(1)
         else:
             testFiles.append(label1files[i])
-            testLabels.append(0)
+            testLabels.append(1)
     return trainFiles,trainLabels,testFiles,testLabels
 
 
@@ -86,7 +86,9 @@ def test(testImages,testLabels,sess):
 
 def train(trainFiles,trainLabels,testFiles,testLabels):
     sess = tf.Session()
+    print('initialize...')
     sess.run(tf.global_variables_initializer())
+    print('initialized')
 
     train_size = len(trainFiles)
     train_data = [tf.image.rgb_to_grayscale(tf.image.decode_png(tf.read_file(file, 'r'))) for file in trainFiles]
@@ -98,7 +100,7 @@ def train(trainFiles,trainLabels,testFiles,testLabels):
     test_images = [tf.reshape(image, [height, width]).eval(session=sess) for image in test_images]
 
     print('data loaded')
-    record = open('result.txt','w')
+    record = open('result.txt','a+')
     for _ in range(train_iter):
         print(_)
         index = np.random.randint(train_size, size=batch_size)
@@ -108,7 +110,7 @@ def train(trainFiles,trainLabels,testFiles,testLabels):
         if _ % 10000 == 0:
             f1,tp,fp,tn,fn = test(test_images,testLabels,sess)
             record.write('f1:'+str(f1))
-            record.write('tp,fp,tn,fn:'+str(tp) + ' ' + str(fp) + ' ' + str(tn) + ' ' + str(fn))
+            record.write(' tp,fp,tn,fn:'+str(tp) + ' ' + str(fp) + ' ' + str(tn) + ' ' + str(fn)+'\n')
 
 trainFiles,trainLabels,testFiles,testLabels = loadData()
 train(trainFiles,trainLabels,testFiles,testLabels)
