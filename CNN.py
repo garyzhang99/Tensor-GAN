@@ -6,7 +6,7 @@ width = 128
 height = 128
 classes = 2
 lr = 1e-3
-batch_size = 4
+batch_size = 8
 train_portion = 0.3
 train_iter = 200000
 
@@ -15,6 +15,8 @@ def loadData():
     label0files = [os.path.join('label_0_denoised/',file) for file in label0files]
     label1files = os.listdir('label_1_denoised')
     label1files = [os.path.join('label_1_denoised/', file) for file in label1files]
+    #label0files = label0files[:20]
+    #label1files = label1files[:20]
     index0 = np.random.randint(len(label0files), size=int(len(label0files) * train_portion))
     index1 = np.random.randint(len(label1files), size=int(len(label1files) * train_portion))
     trainFiles = []
@@ -51,13 +53,13 @@ def CNN(x,drop_rate):
     flatten = tf.layers.flatten(pooling2)
     dense1 = tf.layers.dense(inputs=flatten,units=800,activation=tf.nn.relu)
     drop = tf.layers.dropout(inputs=dense1,rate=drop_rate)
-    dense2 = tf.layers.dense(inputs=drop,units=classes,activation=tf.nn.relu)
+    dense2 = tf.layers.dense(inputs=drop,units=classes,activation=tf.nn.sigmoid)
     return dense2
 
 logits = CNN(X,drop_out)
 prediction = tf.argmax(logits,1)
 loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.one_hot(Y,classes),logits=logits)
-loss = tf.reduce_mean(loss)
+#loss = tf.reduce_mean(loss)
 optimizer = tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
 
 def test(testImages,testLabels,sess):
@@ -65,9 +67,11 @@ def test(testImages,testLabels,sess):
     FP = 0
     TN = 0
     FN = 0
+    testLoss = 0
 
     for i in range(len(testImages)):
-        pre = sess.run(prediction,feed_dict={X:[testImages[i]],drop_out:0.1})
+        pre,l = sess.run([prediction,loss],feed_dict={X:[testImages[i]],Y:[testLabels[i]],drop_out:0.1})
+        testLoss+=l
         if pre == 1 and testLabels[i] == 1:
             TP += 1
         elif pre == 1 and testLabels[i] == 0:
@@ -82,7 +86,7 @@ def test(testImages,testLabels,sess):
         precision = float(TP)/float(TP+FP)
         recall = float(TP)/float(TP+FN)
         f1 = 2*(precision*recall)/(precision+recall)
-    return f1,TP,FP,TN,FN
+    return f1,TP,FP,TN,FN,testLoss/len(testImages)
 
 def train(trainFiles,trainLabels,testFiles,testLabels):
     sess = tf.Session()
@@ -107,8 +111,11 @@ def train(trainFiles,trainLabels,testFiles,testLabels):
         images = [train_images[i] for i in index]
         labels = [trainLabels[i] for i in index]
         sess.run(optimizer,feed_dict={X:images,Y:labels,drop_out:0.1})
+        #print(l)
+        #print(git)
+        #print(hot)
         if _ % 10000 == 0:
-            f1,tp,fp,tn,fn = test(test_images,testLabels,sess)
+            f1,tp,fp,tn,fn,testloss = test(test_images,testLabels,sess)
             record.write('f1:'+str(f1))
             record.write(' tp,fp,tn,fn:'+str(tp) + ' ' + str(fp) + ' ' + str(tn) + ' ' + str(fn)+'\n')
 
