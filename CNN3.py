@@ -1,17 +1,18 @@
 import tensorflow as tf
 import os
 import numpy as np
+import random
 
 width = 128
 height = 128
 classes = 2
 lr = 1e-4
-batch_size = 4
-train_portion = 0.3
-train_iter = 200000
-drop_rate = 0.4
+batch_size = 16
+train_portion = 0.8
+train_iter = 50000
+drop_rate = 0.2
 
-X = tf.placeholder(tf.float32,[None,height,width],name="X")
+X = tf.placeholder(tf.float32,[None,height,width,1],name="X")
 Y = tf.placeholder(tf.int32,[None],name="Y")
 drop_out = tf.placeholder(tf.float32,name="drop_out")
 
@@ -97,18 +98,25 @@ optimizer2 = tf.train.AdamOptimizer(lr).minimize(cross_entropy)
 
 
 def loadData():
+    '''
+    auxfiles = os.listdir('auxdata/')
+    auxfiles = [os.path.join('auxdata',file) for file in auxfiles]
     label0files = os.listdir('label_0_denoised')
     label0files = [os.path.join('label_0_denoised/',file) for file in label0files]
     label1files = os.listdir('label_1_denoised')
     label1files = [os.path.join('label_1_denoised/', file) for file in label1files]
-    label0files = label0files[:20]
-    label1files = label1files[:20]
-    index0 = np.random.randint(len(label0files), size=int(len(label0files) * train_portion))
-    index1 = np.random.randint(len(label1files), size=int(len(label1files) * train_portion))
+    #label0files = label0files[:len(label1files)]
+    #label1files = label1files[:20]
+    index0 = random.sample(range(len(label0files)), int(len(label0files) * train_portion))
+    index1 = random.sample(range(len(label1files)), int(len(label1files) * train_portion))
+    indexAux = random.sample(range(len(auxfiles)), int((len(label0files)-len(label1files))*train_portion))
     trainFiles = []
     trainLabels = []
     testFiles = []
     testLabels = []
+    print('total0,train0: ' + str(len(label0files)) + " " + str(len(index0)))
+    print('total1,train1: ' + str(len(label1files)) + " " + str(len(index1)))
+    print('aux1: ' + str(len(indexAux)))
     for i in range(len(label0files)):
         if i in index0:
             trainFiles.append(label0files[i])
@@ -123,8 +131,48 @@ def loadData():
         else:
             testFiles.append(label1files[i])
             testLabels.append(1)
-    return trainFiles,trainLabels,testFiles,testLabels
+    for i in range(len(auxfiles)):
+        if i in indexAux:
+            trainFiles.append(auxfiles[i])
+            trainLabels.append(1)
+    '''
+    trainFiles = []
+    trainLabels = []
+    testFiles = []
+    testLabels = []
+    train0Files = ['train0/'+fname for fname in os.listdir('train0')]
+    train1Files = ['train1/'+fname for fname in os.listdir('train1')]
+    test0Files = ['test0/'+fname for fname in os.listdir('test0')]
+    test1Files = ['test1/'+fname for fname in os.listdir('test1')]
+    #train0Files = train0Files[:20]
+    #train1Files = train1Files[:16]
+    auxfiles = os.listdir('auxdata/')
+    auxfiles = [os.path.join('auxdata',file) for file in auxfiles]
+    #indexAux = random.sample(range(len(auxfiles)), (len(train0Files)-len(train1Files))*2)
+    #train0Files = train0Files[:len(train1Files)]
+    for f in train0Files:
+        trainFiles.append(f)
+        trainLabels.append(0)
+    for f in train1Files:
+        trainFiles.append(f)
+        trainLabels.append(1)
+    for f in test0Files:
+        testFiles.append(f)
+        testLabels.append(0)
+    for f in test1Files:
+        testFiles.append(f)
+        testLabels.append(1)
+    for i in range(len(auxfiles)):
+        #if i in indexAux:
+        trainFiles.append(auxfiles[i])
+        trainLabels.append(1)
+    print('train0:' + str(len(train0Files)))
+    print('train1:'+str(len(train1Files)))
+    print('test0:'+str(len(test0Files)))
+    print('test1:'+str(len(test1Files)))
+    print('aux:'+str(len(auxfiles)))
 
+    return trainFiles,trainLabels,testFiles,testLabels
 def test(testImages,testLabels,sess):
     TP = 0
     FP = 0
@@ -145,6 +193,8 @@ def test(testImages,testLabels,sess):
             FN += 1
     if TP+FP == 0 or TP+FN == 0:
         f1 = 0
+    elif TP == 0:
+        f1 = 0
     else:
         precision = float(TP)/float(TP+FP)
         recall = float(TP)/float(TP+FN)
@@ -158,13 +208,22 @@ def train(trainFiles,trainLabels,testFiles,testLabels):
     print('initialized')
 
     train_size = len(trainFiles)
-    train_data = [tf.image.rgb_to_grayscale(tf.image.decode_png(tf.read_file(file, 'r'))) for file in trainFiles]
+    train_data = []
+    c = 0
+    for fpath in trainFiles:
+        if fpath[0]=='a':
+            train_data.append(tf.image.decode_png(tf.read_file(fpath,'r')))
+            c+=1
+        else:
+            train_data.append(tf.image.rgb_to_grayscale(tf.image.decode_png(tf.read_file(fpath,'r'))))
+    print('total aux:' + str(c))
+    #train_data = [tf.image.rgb_to_grayscale(tf.image.decode_png(tf.read_file(file, 'r'))) for file in trainFiles]
     train_images = [tf.to_float(tf.reshape(data, [height, width])) / tf.constant(255.) for data in train_data]
-    train_images = [tf.reshape(image, [height,width]).eval(session=sess) for image in train_images]
+    train_images = [tf.reshape(image, [height,width,1]).eval(session=sess) for image in train_images]
 
     test_data = [tf.image.rgb_to_grayscale(tf.image.decode_png(tf.read_file(file, 'r'))) for file in testFiles]
     test_images = [tf.to_float(tf.reshape(data, [height, width])) / tf.constant(255.) for data in test_data]
-    test_images = [tf.reshape(image, [height, width]).eval(session=sess) for image in test_images]
+    test_images = [tf.reshape(image, [height, width,1]).eval(session=sess) for image in test_images]
 
     print('data loaded')
     record = open('result.txt','a+')
@@ -176,10 +235,7 @@ def train(trainFiles,trainLabels,testFiles,testLabels):
         #print(l)
         #print(git)
         #print(hot)
-        if _ % 300 == 0:
-            print('iter: ' + str(_))
-            print('closs: ' + str(closs))
-        if _ % 10000 == 0:
+        if _ % 1000 == 0:
             f1,tp,fp,tn,fn,testloss = test(test_images,testLabels,sess)
             print('f1: ' + str(f1))
             print(' tp,fp,tn,fn: '+str(tp) + ' ' + str(fp) + ' ' + str(tn) + ' ' + str(fn))
@@ -187,6 +243,8 @@ def train(trainFiles,trainLabels,testFiles,testLabels):
             print('closs: ' + str(closs))
             record.write('f1:'+str(f1))
             record.write(' tp,fp,tn,fn:'+str(tp) + ' ' + str(fp) + ' ' + str(tn) + ' ' + str(fn)+'\n')
+            record.write('loss: ' + str(testloss))
+            record.write('closs:" ' + str(closs) + '\n')
 
 trainFiles,trainLabels,testFiles,testLabels = loadData()
 train(trainFiles,trainLabels,testFiles,testLabels)
